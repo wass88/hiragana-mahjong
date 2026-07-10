@@ -24,7 +24,7 @@ export function kakan_candidates(meld: Uint8Array, hand: Uint8Array): string;
 export function kan_candidates(hand: Uint8Array, min_len: number): string;
 
 /**
- * 牌 ID -> 文字 の対応表 (81 文字)
+ * 牌 ID -> 文字 の対応表 (75 文字)
  */
 export function kana_table(): string;
 

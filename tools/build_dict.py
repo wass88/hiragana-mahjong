@@ -28,11 +28,11 @@ FREQ_LIST_URL = (
     "44998-japanese-words.txt"
 )
 
-# 牌の種類 (Rust 側 KANA と同一の 81 種)
-SEION = "あいうえおかきくけこさしすせそたちつてとなにぬねのはひふへほまみむめもやゆよらりるれろわをん"
+# 牌の種類 (Rust 側 KANA と同一の 75 種。「を」「ぁぃぅぇぉ」は牌として使わないため除外)
+SEION = "あいうえおかきくけこさしすせそたちつてとなにぬねのはひふへほまみむめもやゆよらりるれろわん"
 DAKUON = "がぎぐげござじずぜぞだぢづでどばびぶべぼ"
 HANDAKUON = "ぱぴぷぺぽ"
-KOGAKI = "ぁぃぅぇぉっゃゅょ"
+KOGAKI = "っゃゅょ"
 CHOON = "ー"
 ALLOWED = set(SEION + DAKUON + HANDAKUON + KOGAKI + CHOON)
 

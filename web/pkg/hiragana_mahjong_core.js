@@ -89,7 +89,7 @@ export function kan_candidates(hand, min_len) {
 }
 
 /**
- * 牌 ID -> 文字 の対応表 (81 文字)
+ * 牌 ID -> 文字 の対応表 (75 文字)
  * @returns {string}
  */
 export function kana_table() {

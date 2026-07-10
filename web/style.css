@@ -19,6 +19,7 @@
   --paper-edge: #e5dcc3;
   --tile-font: "Hiragino Mincho ProN", "Yu Mincho", "Noto Serif JP", serif;
   --ui-font: "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif;
+  --tile-base: 42px;
 }
 
 html, body { height: 100%; }
@@ -157,12 +158,12 @@ body::before {
   box-shadow: inset 0 1px 4px rgba(0,0,0,.35), 0 0 9px rgba(226,112,74,.7);
 }
 
-#hand-area { display: flex; align-items: center; min-height: 60px; flex-shrink: 0; }
-#hand { display: flex; flex-wrap: wrap; gap: 4px; }
+#hand-area { display: flex; align-items: center; min-height: 60px; flex-shrink: 0; overflow: hidden; }
+#hand { display: flex; flex-wrap: nowrap; gap: 4px; overflow: hidden; }
 
 /* ---- 牌 ---- */
 .tile {
-  --w: 42px;
+  --w: var(--tile-base);
   width: var(--w);
   height: calc(var(--w) * 1.38);
   border: none;
@@ -214,9 +215,9 @@ button.tile:not(:disabled):active { transform: translateY(2px) scale(.97); }
   box-shadow: 0 0 5px var(--good);
 }
 
-.tile.small { --w: 28px; border-radius: 5px; padding-bottom: 3px;
+.tile.small { --w: calc(var(--tile-base) * .667); border-radius: 5px; padding-bottom: 3px;
   box-shadow: inset 0 1px 1px rgba(255,255,255,.95), inset 0 -2.5px 0 var(--tile-side), 0 2px 3px rgba(0,0,0,.35); }
-.tile.mini { --w: 24px; border-radius: 4px; padding-bottom: 2px;
+.tile.mini { --w: calc(var(--tile-base) * .571); border-radius: 4px; padding-bottom: 2px;
   box-shadow: inset 0 1px 1px rgba(255,255,255,.9), inset 0 -2px 0 var(--tile-side), 0 1px 2px rgba(0,0,0,.3); }
 
 .tile.selected {
@@ -243,13 +244,22 @@ button.tile.selected:active { transform: translateY(-6px) scale(.97); }
   box-shadow: inset 0 1px 3px rgba(0,0,0,.25);
   animation: tile-pop .2s cubic-bezier(.34,1.56,.64,1);
 }
-.group .group-word {
-  font-size: 9px;
-  color: var(--gold);
-  margin-left: 4px;
-  align-self: center;
-  letter-spacing: .03em;
-  white-space: nowrap;
+.tile.selected.reject {
+  animation: tile-reject .28s ease;
+  box-shadow:
+    inset 0 1.5px 1px rgba(255,255,255,.95),
+    inset 0 -4px 0 var(--tile-side),
+    inset 0 -5px 1px var(--tile-side-dark),
+    0 0 0 2px #c0392b,
+    0 0 10px rgba(192,57,43,.75),
+    0 5px 8px rgba(0,0,0,.45);
+}
+@keyframes tile-reject {
+  0%, 100% { transform: translateY(-8px) translateX(0); }
+  20% { transform: translateY(-8px) translateX(-5px); }
+  40% { transform: translateY(-8px) translateX(4px); }
+  60% { transform: translateY(-8px) translateX(-3px); }
+  80% { transform: translateY(-8px) translateX(2px); }
 }
 
 /* ---- 河 (捨て牌) ---- */
@@ -319,6 +329,14 @@ button.tile.selected:active { transform: translateY(-6px) scale(.97); }
 #btn-kan:not(:disabled) { animation: kan-glow 2s ease-in-out infinite; }
 @keyframes kan-glow {
   50% { box-shadow: 0 0 12px rgba(226,112,74,.8), inset 0 1px 1px rgba(255,255,255,.45); }
+}
+#btn-kan.armed {
+  background: linear-gradient(180deg, #fff3c9, var(--amber) 60%, #f5c65e);
+  color: #4b3a08;
+  animation: kan-armed-glow 1s ease-in-out infinite;
+}
+@keyframes kan-armed-glow {
+  50% { box-shadow: 0 0 14px rgba(255,224,138,.95), inset 0 1px 1px rgba(255,255,255,.8); }
 }
 #btn-discard {
   color: #f2efe4;
@@ -544,6 +562,6 @@ dialog .key.empty { opacity: .25; }
 
 @media (min-width: 480px) {
   .key { height: 42px; font-size: 17px; }
-  .tile { --w: 46px; }
+  :root { --tile-base: 46px; }
   #topbar h1 { font-size: 19px; }
 }

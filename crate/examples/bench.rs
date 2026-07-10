@@ -22,10 +22,10 @@ fn main() {
     let t = Instant::now();
     let iters = 50;
     for _ in 0..iters {
-        let mut counts = [0u8; 81];
+        let mut counts = [0u8; N_KINDS];
         let hand: Vec<u8> = (0..13)
             .map(|_| loop {
-                let k = (rng() % 81) as u8;
+                let k = (rng() % N_KINDS as u64) as u8;
                 if counts[k as usize] < 4 {
                     counts[k as usize] += 1;
                     break k;
@@ -53,10 +53,10 @@ fn main() {
     let mut worst = std::time::Duration::ZERO;
     let t = Instant::now();
     for _ in 0..iters {
-        let mut counts = [0u8; 81];
+        let mut counts = [0u8; N_KINDS];
         let hand: Vec<u8> = (0..14)
             .map(|_| loop {
-                let k = (rng() % 81) as u8;
+                let k = (rng() % N_KINDS as u64) as u8;
                 if counts[k as usize] < 4 {
                     counts[k as usize] += 1;
                     break k;

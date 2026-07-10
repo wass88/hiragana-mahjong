@@ -12,10 +12,27 @@ import init, {
 // ---------------------------------------------------------------- state
 
 let KANA = "";
-const N = 81;
+let N = 0; // KANA.length (kana_table() 取得後に確定)
+
+// KANA の並び順 (清音45 + 濁音20 + 半濁音5 + 拗音「っゃゅょ」4 + 長音「ー」1) は
+// Rust 側 (crate/src/lib.rs の KANA 定数) の構成と一致している前提。
+// 枚数: 清音は2枚、それ以外(濁音・半濁音・拗音・長音)は1枚。
+const TILE_CATEGORY_COUNTS = [45, 20, 5, 4, 1];
+const TILE_CATEGORY_TILES = [2, 1, 1, 1, 1];
+
+function buildInitialWall() {
+  const wall = new Array(N).fill(0);
+  let idx = 0;
+  for (let c = 0; c < TILE_CATEGORY_COUNTS.length; c++) {
+    for (let i = 0; i < TILE_CATEGORY_COUNTS[c] && idx < N; i++, idx++) {
+      wall[idx] = TILE_CATEGORY_TILES[c];
+    }
+  }
+  return wall;
+}
 
 const state = {
-  wall: new Array(N).fill(4), // 山の残り枚数
+  wall: [], // 山の残り枚数 (boot完了後に buildInitialWall() で初期化)
   hand: [], // 牌IDの配列 (常にソートして表示)
   discards: [],
   melds: [], // {word, tiles:[id]} 宣言済みのカン
@@ -29,9 +46,11 @@ const state = {
 };
 
 // 手牌の見た目上のグループ化(トリオ)と選択状態。ゲームロジックには影響しない。
-let groups = []; // [{tiles:[id,id,id], word}]
+let groups = []; // [{tiles:[id,id,id](単語の並び順), word}]
 let selected = new Map(); // 牌ID -> 選択中の枚数
 let selectedMeldIndex = null; // 加槓の対象として選択中の宣言済み面子
+let kanArmed = false; // 「カン」ボタンで選択モードに入っているか
+let selectionRejected = false; // 直前の選択が不成立でアニメーション表示中
 
 let cache = { ukeire: [], keepTiles: new Set(), shanten: null, winInfo: null, kanReady: null };
 
@@ -90,6 +109,7 @@ function selectedTilesArray() {
 function resetSelection() {
   selected = new Map();
   selectedMeldIndex = null;
+  kanArmed = false;
 }
 
 function clearHandSelection() {
@@ -119,13 +139,27 @@ function consumeGroups() {
   return counts;
 }
 
+function rejectSelection() {
+  selectionRejected = true;
+  render();
+  setTimeout(() => {
+    resetSelection();
+    selectionRejected = false;
+    render();
+  }, 280);
+}
+
 function tryAutoGroup() {
-  if (totalSelectedCount() !== 3) return;
+  if (kanArmed || totalSelectedCount() !== 3) return;
   const tiles = selectedTilesArray();
   const words = JSON.parse(check_word(Uint8Array.from(tiles)));
   if (words.length) {
-    groups.push({ tiles, word: words[0] });
+    const word = words[0];
+    // 選んだ順序に関わらず、実際の単語の並び順で表示する
+    groups.push({ tiles: [...word].map((ch) => KANA.indexOf(ch)), word });
     resetSelection();
+  } else {
+    rejectSelection();
   }
 }
 
@@ -150,7 +184,7 @@ function computeKanReady() {
 // ---------------------------------------------------------------- game flow
 
 function newGame() {
-  state.wall = new Array(N).fill(4);
+  state.wall = buildInitialWall();
   state.hand = [];
   state.discards = [];
   state.melds = [];
@@ -170,7 +204,7 @@ function newGame() {
 }
 
 function setHand(tiles) {
-  state.wall = new Array(N).fill(4);
+  state.wall = buildInitialWall();
   state.hand = [...tiles].sort((a, b) => a - b);
   for (const t of state.hand) state.wall[t]--;
   state.discards = [];
@@ -211,6 +245,20 @@ function discardSelected() {
   render();
 }
 
+/// 嶺上ツモを count 枚ぶん山からランダムに補充する。山が尽きたら流局扱い。
+function drawRinshan(count) {
+  for (let i = 0; i < count; i++) {
+    const t = drawRandomFromWall();
+    if (t === null) {
+      state.exhausted = true;
+      return;
+    }
+    state.wall[t]--;
+    state.hand.push(t);
+    state.lastDrawn = t;
+  }
+}
+
 function declareAnkan(word, tiles) {
   // tiles: ソート済みの牌ID列 (文字数ぶん)
   for (const t of tiles) {
@@ -218,9 +266,9 @@ function declareAnkan(word, tiles) {
     state.hand.splice(i, 1);
   }
   state.melds.push({ word, tiles: [...tiles] });
-  state.pendingDraws += tiles.length - 3;
   state.lastDrawn = null;
   resetSelection();
+  drawRinshan(tiles.length - 3);
   render();
 }
 
@@ -230,17 +278,26 @@ function declareKakan(meldIndex, word, add) {
   const m = state.melds[meldIndex];
   m.word = word;
   m.tiles = [...m.tiles, add].sort((a, b) => a - b);
-  state.pendingDraws += 1;
   state.lastDrawn = null;
   resetSelection();
+  drawRinshan(1);
   render();
 }
 
-function confirmKan() {
-  const ready = cache.kanReady;
-  if (!ready) return;
-  if (ready.kind === "an") declareAnkan(ready.word, ready.tiles);
-  else declareKakan(ready.meldIndex, ready.word, ready.add);
+function onKanButtonClick() {
+  if (!kanArmed) {
+    kanArmed = true;
+    clearHandSelection();
+    render();
+    return;
+  }
+  const ready = computeKanReady();
+  if (ready) {
+    if (ready.kind === "an") declareAnkan(ready.word, ready.tiles);
+    else declareKakan(ready.meldIndex, ready.word, ready.add);
+  } else {
+    rejectSelection();
+  }
 }
 
 function declareTsumo() {
@@ -254,7 +311,7 @@ function declareTsumo() {
 // ---------------------------------------------------------------- analysis
 
 function analyze() {
-  cache = { ukeire: [], keepTiles: new Set(), shanten: null, winInfo: null, kanReady: null };
+  cache = { ukeire: [], keepTiles: new Set(), shanten: null, winInfo: null };
   if (state.won) return;
   const hand = Uint8Array.from(state.hand);
   const md = meldsDone();
@@ -267,7 +324,6 @@ function analyze() {
     for (const i of infos) min = Math.min(min, i.shanten);
     cache.shanten = win ? -1 : min;
     for (const i of infos) if (i.shanten === min) cache.keepTiles.add(i.tile);
-    cache.kanReady = computeKanReady();
   } else {
     cache.shanten = shanten(hand, md);
     cache.ukeire = Array.from(ukeire(hand, md)).filter((t) => state.wall[t] > 0);
@@ -278,11 +334,11 @@ function analyze() {
 
 const KB_MAIN = [
   "あいうえお", "かきくけこ", "さしすせそ", "たちつてと", "なにぬねの",
-  "はひふへほ", "まみむめも", "や ゆ よ", "らりるれろ", "わ を ん",
+  "はひふへほ", "まみむめも", "や ゆ よ", "らりるれろ", "わ   ん",
 ];
 const KB_SUB = [
   "がぎぐげご", "ざじずぜぞ", "だぢづでど", "ばびぶべぼ", "ぱぴぷぺぽ",
-  "ぁぃぅぇぉ", "っゃゅょー",
+  "っゃゅょー",
 ];
 
 function buildKeyboard(mainEl, subEl, onTap) {
@@ -330,6 +386,23 @@ function tileEl(t, cls = "") {
   return b;
 }
 
+/// 手牌が折り返さず一行に収まるよう、必要なら牌のサイズを縮める。
+function fitHandWidth() {
+  const area = $("hand-area");
+  const handEl = $("hand");
+  area.style.removeProperty("--tile-base");
+  const avail = area.clientWidth;
+  if (avail <= 0) return;
+  // gap や box-shadow の丸め誤差を吸収するため、余裕を持たせつつ最大2回まで縮める
+  for (let i = 0; i < 2; i++) {
+    const natural = handEl.scrollWidth;
+    if (natural <= avail) return;
+    const base = parseFloat(getComputedStyle(area).getPropertyValue("--tile-base")) || 42;
+    const newBase = Math.max(18, Math.floor(base * (avail / natural) * 0.97));
+    area.style.setProperty("--tile-base", `${newBase}px`);
+  }
+}
+
 function render() {
   analyze();
 
@@ -350,10 +423,6 @@ function render() {
       });
       box.appendChild(el);
     }
-    const w = document.createElement("span");
-    w.className = "group-word";
-    w.textContent = g.word;
-    box.appendChild(w);
     handEl.appendChild(box);
   });
 
@@ -376,16 +445,21 @@ function render() {
   }
   list.forEach((e, i) => {
     const isDrawn = drawnShown && i === list.length - 1;
-    const cls = [isDrawn ? "drawn" : "", e.sel ? "selected" : ""].filter(Boolean).join(" ");
+    const cls = [
+      isDrawn ? "drawn" : "",
+      e.sel ? "selected" : "",
+      e.sel && selectionRejected ? "reject" : "",
+    ].filter(Boolean).join(" ");
     const el = tileEl(e.kind, cls);
     if (state.showHint && handIs14like() && cache.keepTiles.has(e.kind)) el.classList.add("keep");
     el.addEventListener("click", () => {
+      if (selectionRejected) return;
       if (e.sel) {
         selected.set(e.kind, Math.max(0, (selected.get(e.kind) || 0) - 1));
       } else {
         selected.set(e.kind, (selected.get(e.kind) || 0) + 1);
       }
-      tryAutoGroup();
+      if (!kanArmed) tryAutoGroup();
       render();
     });
     handEl.appendChild(el);
@@ -446,22 +520,26 @@ function render() {
   else if (state.exhausted) msg = "山が尽きました…（流局）";
   else if (state.pendingDraws > 1) msg = `嶺上ツモ: あと${state.pendingDraws}枚 選んでください`;
   else if (state.pendingDraws === 1) msg = "ツモる牌をキーボードから選んでください";
+  else if (selectionRejected) msg = "その組み合わせは単語ではありません";
+  else if (kanArmed) msg = `カンする牌を選んで、もう一度「カン」を押してください(選択中${totalSelectedCount()}枚)`;
   else if (cache.winInfo) msg = "あがり形です。「ツモ」で宣言できます(打牌・カンも可)";
   else if (selectedMeldIndex !== null) msg = "加槓する牌を1枚選んで「カン」を押してください";
-  else msg = "牌を選んで「捨てる」。3枚で単語ならトリオ、4枚以上でカンできます";
+  else msg = "牌を選んで「捨てる」。3枚で単語ならトリオ、4枚以上で「カン」を押して選択";
   $("message").textContent = msg;
 
-  $("btn-discard").hidden = !handIs14like();
+  $("btn-discard").hidden = !handIs14like() || kanArmed;
   $("btn-discard").disabled = totalSelectedCount() !== 1 || selectedMeldIndex !== null;
 
   $("btn-kan").hidden = !handIs14like();
-  $("btn-kan").disabled = !cache.kanReady;
+  $("btn-kan").classList.toggle("armed", kanArmed);
+  $("btn-kan").textContent = kanArmed ? `カン判定(${totalSelectedCount()})` : "カン";
 
-  $("btn-tsumo").hidden = !(handIs14like() && cache.winInfo);
+  $("btn-tsumo").hidden = !(handIs14like() && cache.winInfo) || kanArmed;
 
   $("btn-random").hidden = !(state.pendingDraws > 0 && !state.won && !state.exhausted);
 
   updateKeyboard();
+  fitHandWidth();
 }
 
 // ---------------------------------------------------------------- dialogs
@@ -534,6 +612,7 @@ function openWords() {
 // ---------------------------------------------------------------- editor
 
 let draft = [];
+let TILE_MAX = []; // 牌種ごとの最大枚数 (boot完了後に確定)
 
 function renderEditor() {
   const handEl = $("edit-hand");
@@ -551,10 +630,11 @@ function renderEditor() {
   $("edit-ok").textContent = `確定 (${draft.length}/13)`;
   document.querySelectorAll("#dlg-edit .key[data-tile]").forEach((b) => {
     const t = +b.dataset.tile;
+    const max = TILE_MAX[t] || 1;
     const used = draft.filter((x) => x === t).length;
-    b.querySelector(".cnt").textContent = 4 - used;
-    b.classList.toggle("empty", used >= 4);
-    b.disabled = used >= 4 || draft.length >= 13;
+    b.querySelector(".cnt").textContent = max - used;
+    b.classList.toggle("empty", used >= max);
+    b.disabled = used >= max || draft.length >= 13;
   });
 }
 
@@ -570,6 +650,8 @@ function openEditor() {
 async function boot() {
   await init();
   KANA = kana_table();
+  N = KANA.length;
+  TILE_MAX = buildInitialWall();
   const text = await fetch("./dict.txt").then((r) => r.text());
   const n = set_dict(text);
   console.log(`dictionary: ${n} words`);
@@ -587,7 +669,7 @@ async function boot() {
   $("btn-words").addEventListener("click", openWords);
   $("btn-rules").addEventListener("click", () => $("dlg-rules").showModal());
   $("btn-discard").addEventListener("click", discardSelected);
-  $("btn-kan").addEventListener("click", confirmKan);
+  $("btn-kan").addEventListener("click", onKanButtonClick);
   $("btn-tsumo").addEventListener("click", declareTsumo);
   $("btn-random").addEventListener("click", () => {
     const t = drawRandomFromWall();
@@ -608,7 +690,7 @@ async function boot() {
   });
   $("edit-random").addEventListener("click", () => {
     draft = [];
-    const w = new Array(N).fill(4);
+    const w = buildInitialWall();
     for (let i = 0; i < 13; i++) {
       let t;
       do { t = Math.floor(rng() * N); } while (w[t] === 0);
