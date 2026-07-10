@@ -530,9 +530,12 @@ function render() {
   $("btn-discard").hidden = !handIs14like() || kanArmed;
   $("btn-discard").disabled = totalSelectedCount() !== 1 || selectedMeldIndex !== null;
 
+  const kanLive = kanArmed ? computeKanReady() : null;
   $("btn-kan").hidden = !handIs14like();
   $("btn-kan").classList.toggle("armed", kanArmed);
-  $("btn-kan").textContent = kanArmed ? `カン判定(${totalSelectedCount()})` : "カン";
+  $("btn-kan").classList.toggle("ready", kanArmed && !!kanLive);
+  $("btn-kan").classList.toggle("notready", kanArmed && !kanLive);
+  $("btn-kan").textContent = kanArmed ? (kanLive ? "カンOK" : "カンNG") : "カン";
 
   $("btn-tsumo").hidden = !(handIs14like() && cache.winInfo) || kanArmed;
 

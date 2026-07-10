@@ -262,17 +262,18 @@ button.tile.selected:active { transform: translateY(-6px) scale(.97); }
   80% { transform: translateY(-8px) translateX(2px); }
 }
 
-/* ---- 河 (捨て牌) ---- */
+/* ---- 河 (捨て牌): 1段ぶんの高さに固定し、あふれたら縦スクロール ---- */
 #discards {
-  flex: 1;
-  min-height: 40px;
+  flex-shrink: 0;
+  height: calc(var(--tile-base) * .571 * 1.38 + 14px);
   overflow-y: auto;
+  overflow-x: hidden;
   display: flex;
   flex-wrap: wrap;
   gap: 3px;
   align-content: flex-start;
   background: rgba(0,0,0,.22);
-  border-radius: 12px;
+  border-radius: 10px;
   border: 1px solid rgba(255,255,255,.07);
   box-shadow: inset 0 2px 8px rgba(0,0,0,.35);
   padding: 7px;
@@ -281,10 +282,10 @@ button.tile.selected:active { transform: translateY(-6px) scale(.97); }
 #discards::before {
   content: "河";
   position: absolute;
-  right: 10px;
-  bottom: 2px;
+  right: 8px;
+  bottom: -6px;
   font-family: var(--tile-font);
-  font-size: 34px;
+  font-size: 24px;
   color: rgba(255,255,255,.07);
   pointer-events: none;
 }
@@ -337,6 +338,16 @@ button.tile.selected:active { transform: translateY(-6px) scale(.97); }
 }
 @keyframes kan-armed-glow {
   50% { box-shadow: 0 0 14px rgba(255,224,138,.95), inset 0 1px 1px rgba(255,255,255,.8); }
+}
+#btn-kan.armed.ready {
+  background: linear-gradient(180deg, #a8e6ba, var(--good) 55%, #4fae68);
+  color: #0e3620;
+}
+#btn-kan.armed.notready {
+  background: linear-gradient(180deg, rgba(255,255,255,.22), rgba(255,255,255,.08));
+  color: #f2efe4;
+  animation: none;
+  box-shadow: 0 1px 2px rgba(0,0,0,.35);
 }
 #btn-discard {
   color: #f2efe4;
@@ -491,6 +502,9 @@ dialog h3 small { font-weight: 400; opacity: .7; }
 }
 .word-chip small { font-weight: 400; opacity: .65; font-size: 10px; }
 .word-chip .need { color: #b7452c; opacity: 1; }
+
+/* まだ単語になっていない(あと1枚必要な)語は少し薄く表示 */
+#words-near .word-chip { opacity: .68; }
 
 /* 手牌編集 */
 .edit-hand {
