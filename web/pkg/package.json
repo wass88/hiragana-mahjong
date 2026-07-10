@@ -1,0 +1,15 @@
+{
+  "name": "hiragana-mahjong-core",
+  "type": "module",
+  "version": "0.1.0",
+  "files": [
+    "hiragana_mahjong_core_bg.wasm",
+    "hiragana_mahjong_core.js",
+    "hiragana_mahjong_core.d.ts"
+  ],
+  "main": "hiragana_mahjong_core.js",
+  "types": "hiragana_mahjong_core.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}
