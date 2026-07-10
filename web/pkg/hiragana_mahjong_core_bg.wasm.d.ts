@@ -1,6 +1,7 @@
 /* tslint:disable */
 /* eslint-disable */
 export const memory: WebAssembly.Memory;
+export const check_word: (a: number, b: number) => [number, number];
 export const discard_analysis: (a: number, b: number, c: number, d: number) => [number, number];
 export const kakan_candidates: (a: number, b: number, c: number, d: number) => [number, number];
 export const kan_candidates: (a: number, b: number, c: number) => [number, number];

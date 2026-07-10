@@ -149,6 +149,13 @@ body::before {
   margin-left: 5px;
   letter-spacing: .05em;
 }
+.meld.selectable { transition: box-shadow .15s, border-color .15s; cursor: pointer; }
+.meld.selectable:active { transform: translateY(1px); }
+.meld.selectable .tile, .meld.selectable .meld-word { pointer-events: none; }
+.meld.selected {
+  border-color: var(--vermilion);
+  box-shadow: inset 0 1px 4px rgba(0,0,0,.35), 0 0 9px rgba(226,112,74,.7);
+}
 
 #hand-area { display: flex; align-items: center; min-height: 60px; flex-shrink: 0; }
 #hand { display: flex; flex-wrap: wrap; gap: 4px; }
@@ -212,6 +219,39 @@ button.tile:not(:disabled):active { transform: translateY(2px) scale(.97); }
 .tile.mini { --w: 24px; border-radius: 4px; padding-bottom: 2px;
   box-shadow: inset 0 1px 1px rgba(255,255,255,.9), inset 0 -2px 0 var(--tile-side), 0 1px 2px rgba(0,0,0,.3); }
 
+.tile.selected {
+  transform: translateY(-8px);
+  box-shadow:
+    inset 0 1.5px 1px rgba(255,255,255,.95),
+    inset 0 -4px 0 var(--tile-side),
+    inset 0 -5px 1px var(--tile-side-dark),
+    0 0 0 2px var(--vermilion),
+    0 0 10px rgba(226,112,74,.7),
+    0 5px 8px rgba(0,0,0,.45);
+}
+button.tile.selected:active { transform: translateY(-6px) scale(.97); }
+
+/* ---- トリオ(見た目の整理用グループ) ---- */
+.group {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  padding: 4px 5px 3px;
+  background: rgba(244,201,93,.14);
+  border: 1px solid rgba(244,201,93,.4);
+  border-radius: 9px;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,.25);
+  animation: tile-pop .2s cubic-bezier(.34,1.56,.64,1);
+}
+.group .group-word {
+  font-size: 9px;
+  color: var(--gold);
+  margin-left: 4px;
+  align-self: center;
+  letter-spacing: .03em;
+  white-space: nowrap;
+}
+
 /* ---- 河 (捨て牌) ---- */
 #discards {
   flex: 1;
@@ -270,14 +310,30 @@ button.tile:not(:disabled):active { transform: translateY(2px) scale(.97); }
   box-shadow: 0 2px 4px rgba(0,0,0,.4), inset 0 1px 1px rgba(255,255,255,.8);
 }
 #statusbar button:active { transform: translateY(1px); box-shadow: 0 1px 2px rgba(0,0,0,.4); }
+#statusbar button:disabled { opacity: .35; pointer-events: none; animation: none; }
 #btn-kan {
   color: #fff;
   background: linear-gradient(180deg, #ff9a72, var(--vermilion) 55%, #c85535);
   box-shadow: 0 2px 4px rgba(0,0,0,.4), inset 0 1px 1px rgba(255,255,255,.45);
-  animation: kan-glow 2s ease-in-out infinite;
 }
+#btn-kan:not(:disabled) { animation: kan-glow 2s ease-in-out infinite; }
 @keyframes kan-glow {
   50% { box-shadow: 0 0 12px rgba(226,112,74,.8), inset 0 1px 1px rgba(255,255,255,.45); }
+}
+#btn-discard {
+  color: #f2efe4;
+  background: linear-gradient(180deg, rgba(255,255,255,.2), rgba(255,255,255,.06));
+  border: 1px solid rgba(255,255,255,.28);
+  box-shadow: 0 1px 2px rgba(0,0,0,.35);
+}
+.btn-tsumo {
+  color: #4b3a08;
+  background: linear-gradient(180deg, #ffe9a8, var(--gold) 55%, var(--gold-deep));
+  box-shadow: 0 2px 4px rgba(0,0,0,.4), inset 0 1px 1px rgba(255,255,255,.8);
+  animation: tsumo-glow 1.3s ease-in-out infinite;
+}
+@keyframes tsumo-glow {
+  50% { box-shadow: 0 0 16px rgba(244,201,93,.9), inset 0 1px 1px rgba(255,255,255,.8); }
 }
 
 /* ================= keyboard ================= */
@@ -417,35 +473,6 @@ dialog h3 small { font-weight: 400; opacity: .7; }
 }
 .word-chip small { font-weight: 400; opacity: .65; font-size: 10px; }
 .word-chip .need { color: #b7452c; opacity: 1; }
-
-/* カン */
-#kan-list .kan-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  padding: 11px 12px;
-  margin-bottom: 7px;
-  border: 1px solid #ddd3b6;
-  border-radius: 12px;
-  background: linear-gradient(180deg, #fff, #f6f1e2);
-  font-family: var(--ui-font);
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--ink);
-  box-shadow: 0 1px 3px rgba(0,0,0,.1);
-}
-.kan-item:active { transform: translateY(1px); }
-.kan-item .kan-kind {
-  font-size: 11px;
-  font-weight: 600;
-  color: #8a5a2e;
-  background: #f3e3c3;
-  border-radius: 999px;
-  padding: 3px 8px;
-  margin-left: auto;
-  white-space: nowrap;
-}
 
 /* 手牌編集 */
 .edit-hand {

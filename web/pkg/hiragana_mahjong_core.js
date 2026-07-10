@@ -1,6 +1,27 @@
 /* @ts-self-types="./hiragana_mahjong_core.d.ts" */
 
 /**
+ * tiles (牌 ID の多重集合、順不同) が辞書語のアナグラムかどうかを判定する。
+ * 一致する語をすべて返す (通常は0個か1個、まれに複数の同形異義語)。
+ * @param {Uint8Array} tiles
+ * @returns {string}
+ */
+export function check_word(tiles) {
+    let deferred2_0;
+    let deferred2_1;
+    try {
+        const ptr0 = passArray8ToWasm0(tiles, wasm.__wbindgen_malloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.check_word(ptr0, len0);
+        deferred2_0 = ret[0];
+        deferred2_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
+    }
+}
+
+/**
  * 14枚形の手牌について、各牌を切った後のシャンテン数と有効牌を返す。
  * 有効牌は with_ukeire が真のとき、シャンテン数が最小になる打牌についてのみ計算する。
  * @param {Uint8Array} hand

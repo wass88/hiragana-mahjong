@@ -286,6 +286,22 @@ pub fn kana_table() -> String {
     KANA.to_string()
 }
 
+/// tiles (牌 ID の多重集合、順不同) が辞書語のアナグラムかどうかを判定する。
+/// 一致する語をすべて返す (通常は0個か1個、まれに複数の同形異義語)。
+#[wasm_bindgen]
+pub fn check_word(tiles: &[u8]) -> String {
+    let mut key: Vec<u8> = tiles.to_vec();
+    key.sort_unstable();
+    let words: Vec<String> = with_dict(|d| {
+        d.by_key
+            .get(&key)
+            .map(|idxs| idxs.iter().map(|&i| d.entries[i as usize].word.clone()).collect())
+            .unwrap_or_default()
+    })
+    .unwrap_or_default();
+    serde_json::to_string(&words).unwrap_or_else(|_| "[]".into())
+}
+
 /// シャンテン数。hand は牌 ID 列、melds_done は宣言済み面子(カン)の数。
 /// 13枚形・14枚形どちらでも計算できる。和了形は -1。
 #[wasm_bindgen]

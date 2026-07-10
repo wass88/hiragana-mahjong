@@ -5,8 +5,7 @@ import init, {
   ukeire,
   discard_analysis,
   word_candidates,
-  kan_candidates,
-  kakan_candidates,
+  check_word,
   win_breakdown,
 } from "./pkg/hiragana_mahjong_core.js";
 
@@ -19,7 +18,7 @@ const state = {
   wall: new Array(N).fill(4), // 山の残り枚数
   hand: [], // 牌IDの配列 (常にソートして表示)
   discards: [],
-  melds: [], // {word, tiles:[id]}
+  melds: [], // {word, tiles:[id]} 宣言済みのカン
   pendingDraws: 0, // ツモるべき枚数 (通常ツモ1 / 嶺上)
   lastDrawn: null,
   won: false,
@@ -29,7 +28,12 @@ const state = {
   showHint: localStorage.getItem("showHint") !== "0",
 };
 
-let cache = { ukeire: [], keepTiles: new Set(), shanten: null, kanCount: 0 };
+// 手牌の見た目上のグループ化(トリオ)と選択状態。ゲームロジックには影響しない。
+let groups = []; // [{tiles:[id,id,id], word}]
+let selected = new Map(); // 牌ID -> 選択中の枚数
+let selectedMeldIndex = null; // 加槓の対象として選択中の宣言済み面子
+
+let cache = { ukeire: [], keepTiles: new Set(), shanten: null, winInfo: null, kanReady: null };
 
 const $ = (id) => document.getElementById(id);
 
@@ -69,6 +73,80 @@ function meldsDone() {
   return state.melds.length;
 }
 
+// ---------------------------------------------------------------- 選択/トリオ
+
+function totalSelectedCount() {
+  let t = 0;
+  for (const v of selected.values()) t += v;
+  return t;
+}
+
+function selectedTilesArray() {
+  const arr = [];
+  for (const [k, c] of selected) for (let i = 0; i < c; i++) arr.push(k);
+  return arr.sort((a, b) => a - b);
+}
+
+function resetSelection() {
+  selected = new Map();
+  selectedMeldIndex = null;
+}
+
+function clearHandSelection() {
+  selected = new Map();
+}
+
+function resetGroups() {
+  groups = [];
+}
+
+/// 現在の手牌に対してグループを検証しつつ消費し、残り(未グループ)の枚数を返す。
+/// 手牌から消えた牌を含むグループは自動的に削除する。
+function consumeGroups() {
+  const counts = new Map();
+  for (const t of state.hand) counts.set(t, (counts.get(t) || 0) + 1);
+  const valid = [];
+  for (const g of groups) {
+    const need = new Map();
+    for (const t of g.tiles) need.set(t, (need.get(t) || 0) + 1);
+    let ok = true;
+    for (const [k, c] of need) if ((counts.get(k) || 0) < c) { ok = false; break; }
+    if (!ok) continue;
+    for (const [k, c] of need) counts.set(k, counts.get(k) - c);
+    valid.push(g);
+  }
+  groups = valid;
+  return counts;
+}
+
+function tryAutoGroup() {
+  if (totalSelectedCount() !== 3) return;
+  const tiles = selectedTilesArray();
+  const words = JSON.parse(check_word(Uint8Array.from(tiles)));
+  if (words.length) {
+    groups.push({ tiles, word: words[0] });
+    resetSelection();
+  }
+}
+
+function computeKanReady() {
+  if (!handIs14like()) return null;
+  if (selectedMeldIndex !== null) {
+    const meld = state.melds[selectedMeldIndex];
+    if (!meld || totalSelectedCount() !== 1) return null;
+    const add = selectedTilesArray()[0];
+    const key = [...meld.tiles, add].sort((a, b) => a - b);
+    const words = JSON.parse(check_word(Uint8Array.from(key)));
+    if (!words.length) return null;
+    return { kind: "ka", word: words[0], add, meldIndex: selectedMeldIndex };
+  }
+  const tiles = selectedTilesArray();
+  if (tiles.length < state.minKanLen) return null;
+  const words = JSON.parse(check_word(Uint8Array.from(tiles)));
+  if (!words.length) return null;
+  return { kind: "an", word: words[0], tiles };
+}
+
 // ---------------------------------------------------------------- game flow
 
 function newGame() {
@@ -79,6 +157,8 @@ function newGame() {
   state.lastDrawn = null;
   state.won = false;
   state.exhausted = false;
+  resetSelection();
+  resetGroups();
   for (let i = 0; i < 13; i++) {
     const t = drawRandomFromWall();
     state.wall[t]--;
@@ -98,6 +178,8 @@ function setHand(tiles) {
   state.lastDrawn = null;
   state.won = false;
   state.exhausted = false;
+  resetSelection();
+  resetGroups();
   state.pendingDraws = 1;
   render();
 }
@@ -112,10 +194,12 @@ function drawTile(t) {
   render();
 }
 
-function discardTile(index) {
-  if (!handIs14like() || state.won) return;
-  const t = state.hand[index];
-  state.hand.splice(index, 1);
+function discardSelected() {
+  if (!handIs14like() || totalSelectedCount() !== 1 || selectedMeldIndex !== null) return;
+  const t = selectedTilesArray()[0];
+  resetSelection();
+  const idx = state.hand.indexOf(t);
+  state.hand.splice(idx, 1);
   state.discards.push(t);
   state.lastDrawn = null;
   if (wallTotal() === 0) {
@@ -136,7 +220,7 @@ function declareAnkan(word, tiles) {
   state.melds.push({ word, tiles: [...tiles] });
   state.pendingDraws += tiles.length - 3;
   state.lastDrawn = null;
-  $("dlg-kan").close();
+  resetSelection();
   render();
 }
 
@@ -148,40 +232,42 @@ function declareKakan(meldIndex, word, add) {
   m.tiles = [...m.tiles, add].sort((a, b) => a - b);
   state.pendingDraws += 1;
   state.lastDrawn = null;
-  $("dlg-kan").close();
+  resetSelection();
+  render();
+}
+
+function confirmKan() {
+  const ready = cache.kanReady;
+  if (!ready) return;
+  if (ready.kind === "an") declareAnkan(ready.word, ready.tiles);
+  else declareKakan(ready.meldIndex, ready.word, ready.add);
+}
+
+function declareTsumo() {
+  if (!cache.winInfo) return;
+  const win = cache.winInfo;
+  state.won = true;
+  showWin(win);
   render();
 }
 
 // ---------------------------------------------------------------- analysis
 
 function analyze() {
-  cache = { ukeire: [], keepTiles: new Set(), shanten: null, kanCount: 0 };
+  cache = { ukeire: [], keepTiles: new Set(), shanten: null, winInfo: null, kanReady: null };
   if (state.won) return;
   const hand = Uint8Array.from(state.hand);
   const md = meldsDone();
 
   if (handIs14like()) {
-    // 和了チェック
     const win = JSON.parse(win_breakdown(hand, md));
-    if (win) {
-      state.won = true;
-      cache.shanten = -1;
-      showWin(win);
-      return;
-    }
+    cache.winInfo = win;
     const infos = JSON.parse(discard_analysis(hand, md, false));
     let min = 99;
     for (const i of infos) min = Math.min(min, i.shanten);
-    cache.shanten = min;
+    cache.shanten = win ? -1 : min;
     for (const i of infos) if (i.shanten === min) cache.keepTiles.add(i.tile);
-    // カン候補数
-    let kans = JSON.parse(kan_candidates(hand, state.minKanLen)).length;
-    for (let mi = 0; mi < state.melds.length; mi++) {
-      kans += JSON.parse(
-        kakan_candidates(Uint8Array.from(state.melds[mi].tiles), hand)
-      ).length;
-    }
-    cache.kanCount = kans;
+    cache.kanReady = computeKanReady();
   } else {
     cache.shanten = shanten(hand, md);
     cache.ukeire = Array.from(ukeire(hand, md)).filter((t) => state.wall[t] > 0);
@@ -247,38 +333,72 @@ function tileEl(t, cls = "") {
 function render() {
   analyze();
 
-  // 手牌
+  // 手牌: まずグループ(トリオ)を左側に、残りをその右にソートして表示
   const handEl = $("hand");
   handEl.innerHTML = "";
-  const sorted = [...state.hand].sort((a, b) => a - b);
+  const remaining = consumeGroups();
+
+  groups.forEach((g, gi) => {
+    const box = document.createElement("div");
+    box.className = "group";
+    for (const t of g.tiles) {
+      const el = tileEl(t, "small");
+      el.addEventListener("click", () => {
+        groups.splice(gi, 1);
+        selected.set(t, (selected.get(t) || 0) + 1);
+        render();
+      });
+      box.appendChild(el);
+    }
+    const w = document.createElement("span");
+    w.className = "group-word";
+    w.textContent = g.word;
+    box.appendChild(w);
+    handEl.appendChild(box);
+  });
+
+  const kinds = [...remaining.keys()].filter((k) => remaining.get(k) > 0).sort((a, b) => a - b);
+  let list = [];
+  for (const k of kinds) {
+    const c = remaining.get(k);
+    const selCount = Math.min(selected.get(k) || 0, c);
+    for (let i = 0; i < c; i++) list.push({ kind: k, sel: i < selCount });
+  }
   // 直近ツモ牌は右端に分離表示
   let drawnShown = false;
-  const display = [...sorted];
   if (state.lastDrawn !== null) {
-    const i = display.indexOf(state.lastDrawn);
-    if (i >= 0) {
-      display.splice(i, 1);
-      display.push(state.lastDrawn);
+    const idx = list.findIndex((e) => e.kind === state.lastDrawn);
+    if (idx >= 0) {
+      const [e] = list.splice(idx, 1);
+      list.push(e);
       drawnShown = true;
     }
   }
-  display.forEach((t, i) => {
-    const isDrawn = drawnShown && i === display.length - 1;
-    const el = tileEl(t, isDrawn ? "drawn" : "");
-    if (state.showHint && handIs14like() && cache.keepTiles.has(t)) el.classList.add("keep");
+  list.forEach((e, i) => {
+    const isDrawn = drawnShown && i === list.length - 1;
+    const cls = [isDrawn ? "drawn" : "", e.sel ? "selected" : ""].filter(Boolean).join(" ");
+    const el = tileEl(e.kind, cls);
+    if (state.showHint && handIs14like() && cache.keepTiles.has(e.kind)) el.classList.add("keep");
     el.addEventListener("click", () => {
-      const idx = state.hand.indexOf(t);
-      discardTile(idx);
+      if (e.sel) {
+        selected.set(e.kind, Math.max(0, (selected.get(e.kind) || 0) - 1));
+      } else {
+        selected.set(e.kind, (selected.get(e.kind) || 0) + 1);
+      }
+      tryAutoGroup();
+      render();
     });
     handEl.appendChild(el);
   });
 
-  // 宣言済み面子
+  // 宣言済み面子 (カン)。タップで加槓対象として選択/解除。
   const meldsEl = $("melds");
   meldsEl.innerHTML = "";
   state.melds.forEach((m, mi) => {
     const div = document.createElement("div");
     div.className = "meld";
+    if (handIs14like()) div.classList.add("selectable");
+    if (selectedMeldIndex === mi) div.classList.add("selected");
     for (const ch of m.word) {
       const t = KANA.indexOf(ch);
       const el = tileEl(t, "small");
@@ -290,6 +410,13 @@ function render() {
     w.textContent = `${m.tiles.length}枚`;
     div.appendChild(w);
     div.dataset.meld = mi;
+    if (handIs14like()) {
+      div.addEventListener("click", () => {
+        selectedMeldIndex = selectedMeldIndex === mi ? null : mi;
+        clearHandSelection();
+        render();
+      });
+    }
     meldsEl.appendChild(div);
   });
 
@@ -319,11 +446,19 @@ function render() {
   else if (state.exhausted) msg = "山が尽きました…（流局）";
   else if (state.pendingDraws > 1) msg = `嶺上ツモ: あと${state.pendingDraws}枚 選んでください`;
   else if (state.pendingDraws === 1) msg = "ツモる牌をキーボードから選んでください";
-  else msg = "捨てる牌をタップしてください";
+  else if (cache.winInfo) msg = "あがり形です。「ツモ」で宣言できます(打牌・カンも可)";
+  else if (selectedMeldIndex !== null) msg = "加槓する牌を1枚選んで「カン」を押してください";
+  else msg = "牌を選んで「捨てる」。3枚で単語ならトリオ、4枚以上でカンできます";
   $("message").textContent = msg;
 
-  $("btn-kan").hidden = !(handIs14like() && cache.kanCount > 0);
-  $("btn-kan").textContent = `カン(${cache.kanCount})`;
+  $("btn-discard").hidden = !handIs14like();
+  $("btn-discard").disabled = totalSelectedCount() !== 1 || selectedMeldIndex !== null;
+
+  $("btn-kan").hidden = !handIs14like();
+  $("btn-kan").disabled = !cache.kanReady;
+
+  $("btn-tsumo").hidden = !(handIs14like() && cache.winInfo);
+
   $("btn-random").hidden = !(state.pendingDraws > 0 && !state.won && !state.exhausted);
 
   updateKeyboard();
@@ -396,32 +531,6 @@ function openWords() {
   $("dlg-words").showModal();
 }
 
-function openKan() {
-  const hand = Uint8Array.from(state.hand);
-  const list = $("kan-list");
-  list.innerHTML = "";
-  const ankans = JSON.parse(kan_candidates(hand, state.minKanLen));
-  for (const k of ankans) {
-    const b = document.createElement("button");
-    b.className = "kan-item";
-    b.innerHTML = `<span>${k.word}</span><span class="kan-kind">暗槓 ${k.word.length}枚</span>`;
-    b.addEventListener("click", () => declareAnkan(k.word, k.tiles));
-    list.appendChild(b);
-  }
-  state.melds.forEach((m, mi) => {
-    const kakans = JSON.parse(kakan_candidates(Uint8Array.from(m.tiles), hand));
-    for (const k of kakans) {
-      const b = document.createElement("button");
-      b.className = "kan-item";
-      b.innerHTML = `<span>${m.word} → <b>${k.word}</b></span><span class="kan-kind">加槓 +${KANA[k.add]}</span>`;
-      b.addEventListener("click", () => declareKakan(mi, k.word, k.add));
-      list.appendChild(b);
-    }
-  });
-  if (!list.children.length) list.textContent = "カンできる単語がありません";
-  $("dlg-kan").showModal();
-}
-
 // ---------------------------------------------------------------- editor
 
 let draft = [];
@@ -477,7 +586,9 @@ async function boot() {
   $("btn-edit").addEventListener("click", openEditor);
   $("btn-words").addEventListener("click", openWords);
   $("btn-rules").addEventListener("click", () => $("dlg-rules").showModal());
-  $("btn-kan").addEventListener("click", openKan);
+  $("btn-discard").addEventListener("click", discardSelected);
+  $("btn-kan").addEventListener("click", confirmKan);
+  $("btn-tsumo").addEventListener("click", declareTsumo);
   $("btn-random").addEventListener("click", () => {
     const t = drawRandomFromWall();
     if (t !== null) drawTile(t);

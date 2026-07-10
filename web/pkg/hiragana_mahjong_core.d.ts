@@ -2,6 +2,12 @@
 /* eslint-disable */
 
 /**
+ * tiles (牌 ID の多重集合、順不同) が辞書語のアナグラムかどうかを判定する。
+ * 一致する語をすべて返す (通常は0個か1個、まれに複数の同形異義語)。
+ */
+export function check_word(tiles: Uint8Array): string;
+
+/**
  * 14枚形の手牌について、各牌を切った後のシャンテン数と有効牌を返す。
  * 有効牌は with_ukeire が真のとき、シャンテン数が最小になる打牌についてのみ計算する。
  */
@@ -52,6 +58,7 @@ export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembl
 
 export interface InitOutput {
     readonly memory: WebAssembly.Memory;
+    readonly check_word: (a: number, b: number) => [number, number];
     readonly discard_analysis: (a: number, b: number, c: number, d: number) => [number, number];
     readonly kakan_candidates: (a: number, b: number, c: number, d: number) => [number, number];
     readonly kan_candidates: (a: number, b: number, c: number) => [number, number];

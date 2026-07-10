@@ -34,7 +34,9 @@
   <div id="statusbar">
     <span id="message">読み込み中…</span>
     <span id="wall-count"></span>
+    <button id="btn-tsumo" class="btn-tsumo" hidden>ツモ</button>
     <button id="btn-kan" hidden>カン</button>
+    <button id="btn-discard" hidden disabled>捨てる</button>
     <button id="btn-random">ランダムツモ</button>
   </div>
 
@@ -53,14 +55,6 @@
     <div id="words-near" class="word-list"></div>
   </div>
   <form method="dialog"><button class="dlg-close">閉じる</button></form>
-</dialog>
-
-<dialog id="dlg-kan">
-  <h2>カン宣言</h2>
-  <div class="dlg-body">
-    <div id="kan-list"></div>
-  </div>
-  <form method="dialog"><button class="dlg-close">やめる</button></form>
 </dialog>
 
 <dialog id="dlg-edit">
@@ -96,7 +90,10 @@
       <li><b>暗槓</b> = <span id="rule-kan-len">4</span>文字以上の単語を手牌から宣言。1面子として数え、(文字数−3)枚を嶺上ツモ。</li>
       <li><b>加槓(小明槓)</b> = 宣言済みの単語に手牌の1枚を足して1文字長い単語にする。繰り返し可。1枚嶺上ツモ。</li>
       <li>ツモは下のキーボードから自由に選べるシミュレータ。<b>光っている牌が有効牌</b>(シャンテン数が下がる牌)、数字は山の残り枚数。</li>
-      <li>捨てる牌をタップして打牌。緑の点が付いた牌はシャンテン数を保つ打牌。</li>
+      <li>手牌の牌はタップで選択(再タップで解除)。<b>1枚選んで「捨てる」</b>で打牌(緑の点が付いた牌はシャンテン数を保つ打牌)。</li>
+      <li><b>3枚選んで単語になっていれば自動でトリオにまとまる</b>(見た目の整理用。トリオ内の牌をタップすると崩して選び直せる)。</li>
+      <li><b>暗槓</b>は4枚以上選んで「カン」。<b>加槓</b>は宣言済みの面子をタップして選び、足す牌を1枚選んで「カン」。</li>
+      <li>あがり形になったら<b>「ツモ」ボタン</b>で宣言(押すまでは打牌やカンも可能)。</li>
     </ul>
     <h3>設定</h3>
     <label>暗槓に必要な文字数:
