@@ -575,9 +575,23 @@ function showWin(win) {
   $("dlg-win").showModal();
 }
 
+function tilesFromWord(word) {
+  return [...word].map((ch) => KANA.indexOf(ch));
+}
+
+function isFormableFrom(tiles, counts) {
+  const need = new Map();
+  for (const t of tiles) need.set(t, (need.get(t) || 0) + 1);
+  for (const [k, c] of need) if ((counts.get(k) || 0) < c) return false;
+  return true;
+}
+
 function openWords() {
   const hand = Uint8Array.from(state.hand);
   const res = JSON.parse(word_candidates(hand));
+  // 既にトリオにまとめた牌を除いた、未グループの牌だけで作れるかどうかの判定用
+  const ungrouped = consumeGroups();
+
   const compEl = $("words-complete");
   compEl.innerHTML = "";
   const byLen = new Map();
@@ -590,6 +604,7 @@ function openWords() {
     for (const c of byLen.get(l)) {
       const chip = document.createElement("span");
       chip.className = "word-chip";
+      if (!isFormableFrom(tilesFromWord(c.word), ungrouped)) chip.classList.add("unavailable");
       chip.innerHTML = `${c.word} <small>${l}字</small>`;
       compEl.appendChild(chip);
     }
@@ -605,6 +620,10 @@ function openWords() {
   for (const n of near.slice(0, 120)) {
     const chip = document.createElement("span");
     chip.className = "word-chip";
+    // 不足分(need)を除いた、手牌側から使うぶんが未グループの牌だけで足りるか
+    const handPortion = tilesFromWord(n.word);
+    handPortion.splice(handPortion.indexOf(n.need), 1);
+    if (!isFormableFrom(handPortion, ungrouped)) chip.classList.add("unavailable");
     chip.innerHTML = `${n.word} <small class="need">+${KANA[n.need]}(残${n.left})</small>`;
     nearEl.appendChild(chip);
   }

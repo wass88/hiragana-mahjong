@@ -503,8 +503,8 @@ dialog h3 small { font-weight: 400; opacity: .7; }
 .word-chip small { font-weight: 400; opacity: .65; font-size: 10px; }
 .word-chip .need { color: #b7452c; opacity: 1; }
 
-/* まだ単語になっていない(あと1枚必要な)語は少し薄く表示 */
-#words-near .word-chip { opacity: .68; }
+/* 既にトリオにまとめた牌を使わないと作れない語は少し薄く表示 */
+.word-chip.unavailable { opacity: .8; }
 
 /* 手牌編集 */
 .edit-hand {
