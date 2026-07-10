@@ -505,7 +505,7 @@ dialog h3 small { font-weight: 400; opacity: .7; }
 .word-chip .need { color: #b7452c; opacity: 1; }
 
 /* 既にトリオにまとめた牌を使わないと作れない語は少し薄く表示 */
-.word-chip.unavailable { opacity: .8; }
+.word-chip.unavailable { opacity: .6; }
 
 /* 手牌編集 */
 .edit-hand {
