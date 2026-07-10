@@ -36,7 +36,7 @@ hiragana-mahjong/
 ├── tools/build_dict.py  # 辞書生成 (mecab-ipadic → web/dict.txt)
 └── web/              # 静的サイト本体
     ├── index.html / style.css / main.js
-    ├── dict.txt      # 生成済み辞書 (約4.7万語)
+    ├── dict.txt      # 生成済み辞書 (約2万語)
     └── pkg/          # wasm-pack 出力 (コミット済み)
 ```
 
@@ -77,6 +77,11 @@ python3 tools/build_dict.py web/dict.txt
 ## 辞書
 
 [mecab-ipadic](https://github.com/taku910/mecab/tree/master/mecab-ipadic) の
-一般名詞・サ変接続名詞・形容動詞語幹・副詞可能名詞・副詞の読みから生成
-（2〜8文字、約46,800語）。mecab-ipadic は奈良先端科学技術大学院大学による
-IPADIC に由来します（配布条件は同リポジトリの COPYING を参照）。
+一般名詞・サ変接続名詞・副詞可能名詞の読みから生成（2〜8文字）。
+[hingston/japanese](https://github.com/hingston/japanese) の頻度語彙リスト
+（Leeds Corpus 由来）に収録されている語のみを採用し、古語・専門語をふるい落として
+いる（mecab-ipadic の cost 列は約4割が同一のデフォルト値に偏っており頻度の指標
+として使えないため不採用）。副詞・形容動詞語幹（例: 「きれい」「しずか」）は
+「名詞感がない」ため出典から除外。結果、約2万語・頻度順位の昇順で収録。
+mecab-ipadic は奈良先端科学技術大学院大学による IPADIC に由来します（配布条件は
+同リポジトリの COPYING を参照）。
