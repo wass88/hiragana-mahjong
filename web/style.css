@@ -496,7 +496,8 @@ dialog .key.empty { opacity: .25; }
 
 /* ルール */
 #rules-body ul { padding-left: 1.3em; font-size: 13px; line-height: 1.75; margin-bottom: 12px; }
-#rules-body label { font-size: 13px; font-weight: 600; }
+#rules-body h3 { font-size: 14px; margin: 0 0 8px; }
+#rules-body label { font-size: 13px; font-weight: 600; display: block; margin-bottom: 10px; }
 #rules-body select {
   font-size: 13px;
   padding: 5px 8px;
@@ -506,6 +507,13 @@ dialog .key.empty { opacity: .25; }
   margin-left: 6px;
   font-family: var(--ui-font);
 }
+#rules-body .toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 400;
+}
+#rules-body .toggle-row input { width: 18px; height: 18px; }
 
 @media (min-width: 480px) {
   .key { height: 42px; font-size: 17px; }

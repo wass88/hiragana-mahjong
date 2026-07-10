@@ -25,6 +25,8 @@ const state = {
   won: false,
   exhausted: false,
   minKanLen: parseInt(localStorage.getItem("minKanLen") || "4", 10),
+  showEffective: localStorage.getItem("showEffective") !== "0",
+  showHint: localStorage.getItem("showHint") !== "0",
 };
 
 let cache = { ukeire: [], keepTiles: new Set(), shanten: null, kanCount: 0 };
@@ -230,7 +232,7 @@ function updateKeyboard() {
     const n = state.wall[t];
     b.querySelector(".cnt").textContent = n;
     b.classList.toggle("empty", n === 0);
-    b.classList.toggle("eff", effSet.has(t));
+    b.classList.toggle("eff", state.showEffective && effSet.has(t));
     b.disabled = !active || n === 0;
   });
 }
@@ -263,7 +265,7 @@ function render() {
   display.forEach((t, i) => {
     const isDrawn = drawnShown && i === display.length - 1;
     const el = tileEl(t, isDrawn ? "drawn" : "");
-    if (handIs14like() && cache.keepTiles.has(t)) el.classList.add("keep");
+    if (state.showHint && handIs14like() && cache.keepTiles.has(t)) el.classList.add("keep");
     el.addEventListener("click", () => {
       const idx = state.hand.indexOf(t);
       discardTile(idx);
@@ -511,6 +513,22 @@ async function boot() {
     state.minKanLen = parseInt(sel.value, 10);
     localStorage.setItem("minKanLen", sel.value);
     $("rule-kan-len").textContent = sel.value;
+    render();
+  });
+
+  const chkEff = $("chk-show-eff");
+  chkEff.checked = state.showEffective;
+  chkEff.addEventListener("change", () => {
+    state.showEffective = chkEff.checked;
+    localStorage.setItem("showEffective", chkEff.checked ? "1" : "0");
+    render();
+  });
+
+  const chkHint = $("chk-show-hint");
+  chkHint.checked = state.showHint;
+  chkHint.addEventListener("change", () => {
+    state.showHint = chkHint.checked;
+    localStorage.setItem("showHint", chkHint.checked ? "1" : "0");
     render();
   });
 

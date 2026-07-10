@@ -98,6 +98,7 @@
       <li>ツモは下のキーボードから自由に選べるシミュレータ。<b>光っている牌が有効牌</b>(シャンテン数が下がる牌)、数字は山の残り枚数。</li>
       <li>捨てる牌をタップして打牌。緑の点が付いた牌はシャンテン数を保つ打牌。</li>
     </ul>
+    <h3>設定</h3>
     <label>暗槓に必要な文字数:
       <select id="sel-kan-len">
         <option value="4">4文字以上</option>
@@ -105,7 +106,20 @@
         <option value="6">6文字以上</option>
       </select>
     </label>
-    <p class="dlg-note">辞書: mecab-ipadic の一般名詞・サ変名詞・形容動詞語幹・副詞 約4.7万語。</p>
+    <label class="toggle-row">
+      <input type="checkbox" id="chk-show-eff">
+      有効牌ハイライト(キーボードが光る)を表示
+    </label>
+    <label class="toggle-row">
+      <input type="checkbox" id="chk-show-hint">
+      打牌ヒント(手牌の緑の点)を表示
+    </label>
+    <p class="dlg-note">
+      辞書: <a href="https://github.com/taku910/mecab/tree/master/mecab-ipadic" target="_blank" rel="noopener">mecab-ipadic</a>
+      の一般名詞・サ変名詞・副詞可能名詞のうち、
+      <a href="https://github.com/hingston/japanese" target="_blank" rel="noopener">hingston/japanese</a>
+      の頻度語彙リスト(Leeds Corpus由来)に収録されている語のみを採用(約2万語)。
+    </p>
   </div>
   <form method="dialog"><button class="dlg-close">閉じる</button></form>
 </dialog>
